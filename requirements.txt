@@ -1,3 +1,4 @@
+absl-py
 astunparse
 babel
 bcrypt
@@ -15,13 +16,19 @@ Flask-Login
 Flask-SQLAlchemy
 flatbuffers
 fonttools
+gast
+google-pasta
 greenlet
+grpcio
 gunicorn
+h5py
 idna
 itsdangerous
 Jinja2
 joblib
+keras
 kiwisolver
+libclang
 Markdown
 markdown-it-py
 MarkupSafe
@@ -31,11 +38,13 @@ ml_dtypes
 namex
 narwhals
 numpy
+opt_einsum
 optree
 packaging
 pandas
 pillow
 plotly
+protobuf
 Pygments
 pyparsing
 python-dateutil
@@ -48,6 +57,9 @@ scipy
 setuptools
 six
 SQLAlchemy
+tensorboard
+tensorboard-data-server
+tensorflow==2.15.0
 termcolor
 threadpoolctl
 typing_extensions
@@ -55,4 +67,5 @@ tzdata
 urllib3
 Werkzeug
 wheel
+wrapt
 xgboost
