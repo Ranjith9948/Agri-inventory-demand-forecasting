@@ -237,3 +237,28 @@ body::before {
     transform: translate(-50%, -50%);
     z-index: -1;
 }
+/* ================= NAVBAR MOBILE FIX ================= */
+
+.navbar-collapse {
+    z-index: 1000;
+}
+
+@media (max-width: 991px) {
+
+    .navbar-nav {
+        background-color: #212529;
+        padding: 10px;
+        border-radius: 10px;
+    }
+
+    .nav-link {
+        margin-left: 0 !important;
+        padding: 10px;
+        display: block;
+    }
+
+    .navbar-toggler {
+        border-color: rgba(255,255,255,0.5);
+    }
+
+}
