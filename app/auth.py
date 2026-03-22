@@ -8,14 +8,17 @@ auth = Blueprint("auth", __name__)
 
 
 # ================= 🔐 ADMIN DECORATOR =================
-def admin_required(f):
+from functools import wraps
+from flask import abort
+from flask_login import current_user
+
+def super_admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or current_user.role != "Admin":
+        if not current_user.is_authenticated or current_user.role != "Super Admin":
             abort(403)
         return f(*args, **kwargs)
     return decorated_function
-
 
 # ================= LOGIN =================
 @auth.route("/login", methods=["GET", "POST"])
