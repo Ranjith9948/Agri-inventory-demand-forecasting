@@ -4,9 +4,6 @@ import pandas as pd
 import os
 import numpy as np
 
-from app.utils import role_required
-from app.models import User, db   # Needed for approval system
-
 dashboard = Blueprint("dashboard", __name__)
 
 
@@ -20,35 +17,6 @@ def load_data():
     except Exception as e:
         print("CSV Load Error:", e)
         return pd.DataFrame()
-
-
-# ================= LANGUAGE SWITCH =================
-@dashboard.route("/set_language/<lang>")
-def set_language(lang):
-    session["lang"] = lang
-    return redirect(request.referrer or url_for("dashboard.show_dashboard"))
-
-
-# ================= APPROVE USERS =================
-@dashboard.route("/approve_users")
-@login_required
-@role_required(["Admin"])
-def approve_users():
-
-    pending_users = User.query.filter_by(approved=False).all()
-    return render_template("approve_users.html", users=pending_users)
-
-
-@dashboard.route("/approve/<int:user_id>")
-@login_required
-@role_required(["Admin"])
-def approve(user_id):
-
-    user = User.query.get_or_404(user_id)
-    user.approved = True
-    db.session.commit()
-
-    return redirect(url_for("dashboard.approve_users"))
 
 
 # ================= MAIN DASHBOARD =================
