@@ -1,86 +1,76 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>{{ _('Government Agricultural AI Portal') }}</title>
+<ul class="navbar-nav ms-auto">
 
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Dashboard -->
+    <li class="nav-item">
+      <a class="nav-link" href="{{ url_for('dashboard.show_dashboard') }}">
+        {{ _('Dashboard') }}
+      </a>
+    </li>
 
-    <!-- ✅ Bootstrap -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Forecast -->
+    <li class="nav-item">
+      <a class="nav-link" href="{{ url_for('forecast.show_forecast') }}">
+        {{ _('Forecasting') }}
+      </a>
+    </li>
 
-    <!-- Your CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
+    <!-- Inventory -->
+    <li class="nav-item">
+      <a class="nav-link" href="{{ url_for('inventory.show_inventory') }}">
+        {{ _('Inventory') }}
+      </a>
+    </li>
 
-<body class="{{ current_user.role|lower|replace(' ', '-') }}-theme">
+    <!-- Language -->
+    <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+            🌐 {{ _('Language') }}
+        </a>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{{ url_for('set_language', lang='en') }}">English</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('set_language', lang='hi') }}">हिंदी</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('set_language', lang='te') }}">తెలుగు</a></li>
+        </ul>
+    </li>
 
-<!-- ✅ NAVBAR (FIXED RESPONSIVE) -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-  <div class="container-fluid">
+    <!-- Approve Users (Admin Only) -->
+    {% if current_user.is_authenticated and current_user.role == "Admin" %}
+    <li class="nav-item">
+        <a class="nav-link position-relative" href="{{ url_for('auth.approve_users') }}">
+            🔒 Approve Users
 
-    <!-- Logo -->
-    <a class="navbar-brand fw-bold">🇮🇳 {{ _('National Agri AI Portal') }}</a>
+            {% if pending_count > 0 %}
+            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                {{ pending_count }}
+            </span>
+            {% endif %}
+        </a>
+    </li>
+    {% endif %}
 
-    <!-- ✅ Hamburger Button -->
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-        <span class="navbar-toggler-icon"></span>
-    </button>
+    <!-- Logs (Admin + Super Admin) -->
+    {% if current_user.is_authenticated and current_user.role in ["Admin", "Super Admin"] %}
+    <li class="nav-item">
+        <a class="nav-link" href="/logs">Logs</a>
+    </li>
+    {% endif %}
 
-    <!-- ✅ Menu -->
-    <div class="collapse navbar-collapse" id="navbarNav">
-      <ul class="navbar-nav ms-auto">
+    <!-- Login / Logout -->
+    {% if current_user.is_authenticated %}
+    <li class="nav-item">
+        <a class="nav-link text-danger" href="{{ url_for('auth.logout') }}">
+            {{ _('Logout') }}
+        </a>
+    </li>
+    {% else %}
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('auth.login') }}">
+            {{ _('Login') }}
+        </a>
+    </li>
+    {% endif %}
 
-        <li class="nav-item">
-          <a class="nav-link" href="{{ url_for('dashboard.show_dashboard') }}">
-            {{ _('Dashboard') }}
-          </a>
-        </li>
-
-        <li class="nav-item">
-          <a class="nav-link" href="{{ url_for('forecast.show_forecast') }}">
-            {{ _('Forecasting') }}
-          </a>
-        </li>
-
-        <li class="nav-item">
-          <a class="nav-link" href="{{ url_for('inventory.show_inventory') }}">
-            {{ _('Inventory') }}
-          </a>
-        </li>
-
-        <!-- 🌐 Language Dropdown -->
-        <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                🌐 {{ _('Language') }}
-            </a>
-            <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="{{ url_for('set_language', lang='en') }}">English</a></li>
-                <li><a class="dropdown-item" href="{{ url_for('set_language', lang='hi') }}">हिंदी</a></li>
-                <li><a class="dropdown-item" href="{{ url_for('set_language', lang='te') }}">తెలుగు</a></li>
-            </ul>
-        </li>
-
-        {% if current_user.is_authenticated and current_user.role == "Admin" %}
-        <li class="nav-item">
-            <a class="nav-link position-relative" href="{{ url_for('auth.approve_users') }}">
-                🔒 Approve Users
-
-                {% if pending_count > 0 %}
-                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                    {{ pending_count }}
-                </span>
-                {% endif %}
-            </a>
-        </li>
-        {% endif %}
-
-      {% if current_user.is_authenticated and current_user.role in ["Admin", "Super Admin"] %}
-<li class="nav-item">
-    <a class="nav-link" href="/logs">Logs</a>
-</li>
-{% endif %}
-      </ul>
+</ul>
     </div>
 
   </div>
