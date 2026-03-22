@@ -1,9 +1,20 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 from .models import User, db
 
 auth = Blueprint("auth", __name__)
+
+
+# ================= 🔐 ADMIN DECORATOR =================
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role != "Admin":
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated_function
 
 
 # ================= LOGIN =================
@@ -17,24 +28,17 @@ def login():
 
         user = User.query.filter_by(username=username).first()
 
-        if user:
+        if user and check_password_hash(user.password, password):
 
-            # Check password
-            if check_password_hash(user.password, password):
+            if hasattr(user, "approved") and not user.approved:
+                flash("Your account is waiting for Admin approval.")
+                return redirect(url_for("auth.login"))
 
-                # Check approval BEFORE login
-                if hasattr(user, "approved") and not user.approved:
-                    flash("Your account is waiting for Admin approval.")
-                    return redirect(url_for("auth.login"))
-
-                login_user(user)
-                return redirect(url_for("dashboard.show_dashboard"))
-
-            else:
-                flash("Incorrect password")
+            login_user(user)
+            return redirect(url_for("dashboard.show_dashboard"))
 
         else:
-            flash("User not found")
+            flash("Invalid username or password")
 
     return render_template("login.html")
 
@@ -50,31 +54,28 @@ def register():
         password = request.form.get("password")
         role = request.form.get("role")
 
-        existing_user = User.query.filter_by(username=username).first()
-        if existing_user:
+        # 🔐 Prevent anyone from creating Admin directly
+        if role == "Admin":
+            role = "Farmer"   # force downgrade
+
+        if User.query.filter_by(username=username).first():
             flash("Username already exists")
             return redirect(url_for("auth.register"))
 
         hashed_password = generate_password_hash(password)
-
-        # Approval Logic
-        if role == "Admin":
-            approved = True
-        else:
-            approved = False
 
         new_user = User(
             username=username,
             email=email,
             password=hashed_password,
             role=role,
-            approved=approved
+            approved=False   # always require approval
         )
 
         db.session.add(new_user)
         db.session.commit()
 
-        flash("Registration successful. Please login.")
+        flash("Registration successful. Waiting for Admin approval.")
         return redirect(url_for("auth.login"))
 
     return render_template("register.html")
@@ -91,25 +92,18 @@ def logout():
 # ================= APPROVE USERS PAGE =================
 @auth.route("/approve_users")
 @login_required
+@admin_required
 def approve_users():
 
-    if current_user.role != "Admin":
-        flash("Access denied.")
-        return redirect(url_for("dashboard.show_dashboard"))
-
     pending_users = User.query.filter_by(approved=False).all()
-
     return render_template("approve_users.html", users=pending_users)
 
 
-# ================= APPROVE SINGLE USER =================
-@auth.route("/approve_user/<int:user_id>")
+# ================= APPROVE USER (SECURE POST) =================
+@auth.route("/approve_user/<int:user_id>", methods=["POST"])
 @login_required
+@admin_required
 def approve_user(user_id):
-
-    if current_user.role != "Admin":
-        flash("Access denied.")
-        return redirect(url_for("dashboard.show_dashboard"))
 
     user = User.query.get_or_404(user_id)
 
@@ -120,20 +114,16 @@ def approve_user(user_id):
     return redirect(url_for("auth.approve_users"))
 
 
-# ================= CHANGE USER ROLE =================
+# ================= CHANGE ROLE =================
 @auth.route("/change_role/<int:user_id>", methods=["POST"])
 @login_required
+@admin_required
 def change_role(user_id):
 
-    if current_user.role != "Admin":
-        flash("Access denied.")
-        return redirect(url_for("dashboard.show_dashboard"))
-
     user = User.query.get_or_404(user_id)
-
     new_role = request.form.get("role")
 
-    # Optional safety: prevent admin from changing own role
+    # 🔐 Prevent self role change
     if user.id == current_user.id:
         flash("You cannot change your own role.")
         return redirect(url_for("auth.approve_users"))
