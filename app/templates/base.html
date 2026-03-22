@@ -88,7 +88,14 @@
             </a>
         </li>
         {% endif %}
-
+          <li class="nav-item">
+               <a class="nav-link" href="/logs">Logs</a>
+         </li>
+       {% if current_user.role in ["Admin", "Super Admin"] %}
+             <li class="nav-item">
+             <a class="nav-link" href="/logs">Logs</a>
+           </li>
+     {% endif %}
       </ul>
     </div>
 
