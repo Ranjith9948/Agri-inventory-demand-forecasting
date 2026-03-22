@@ -113,10 +113,17 @@ def approve_user(user_id):
     user.approved = True
     db.session.commit()
 
-    flash(f"{user.username} has been approved.")
+    # ✅ LOG ENTRY
+    log = AuditLog(
+        action="Approved User",
+        performed_by=current_user.username,
+        target_user=user.username
+    )
+    db.session.add(log)
+    db.session.commit()
+
+    flash(f"{user.username} approved.")
     return redirect(url_for("auth.approve_users"))
-
-
 # ================= CHANGE ROLE =================
 @auth.route("/change_role/<int:user_id>", methods=["POST"])
 @login_required
