@@ -112,6 +112,14 @@ def create_app():
     app.register_blueprint(dashboard)
     app.register_blueprint(forecast)
     app.register_blueprint(inventory)
+    # ============================
+    # 🏠 HOME ROUTE (FIXED)
+    # ============================
+    @app.route("/")
+    def home():
+      if current_user.is_authenticated:
+        return redirect(url_for("dashboard.show_dashboard"))
+        return redirect(url_for("auth.login"))
 
     # ============================
     # Create Database
