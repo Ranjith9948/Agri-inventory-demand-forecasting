@@ -2,16 +2,12 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
-from .models import AuditLog
+from .models import User, db, AuditLog
 
 auth = Blueprint("auth", __name__)
 
 
-# ================= 🔐 ADMIN DECORATOR =================
-from functools import wraps
-from flask import abort
-from flask_login import current_user
-
+# ================= 🔐 SUPER ADMIN DECORATOR =================
 def super_admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -19,6 +15,17 @@ def super_admin_required(f):
             abort(403)
         return f(*args, **kwargs)
     return decorated_function
+
+
+# ================= 🔐 ADMIN DECORATOR =================
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role not in ["Admin", "Super Admin"]:
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated_function
+
 
 # ================= LOGIN =================
 @auth.route("/login", methods=["GET", "POST"])
@@ -57,9 +64,9 @@ def register():
         password = request.form.get("password")
         role = request.form.get("role")
 
-        # 🔐 Prevent anyone from creating Admin directly
+        # 🔐 Prevent Admin self-registration
         if role == "Admin":
-            role = "Farmer"   # force downgrade
+            role = "Farmer"
 
         if User.query.filter_by(username=username).first():
             flash("Username already exists")
@@ -72,7 +79,7 @@ def register():
             email=email,
             password=hashed_password,
             role=role,
-            approved=False   # always require approval
+            approved=False
         )
 
         db.session.add(new_user)
@@ -92,7 +99,7 @@ def logout():
     return redirect(url_for("auth.login"))
 
 
-# ================= APPROVE USERS PAGE =================
+# ================= APPROVE USERS =================
 @auth.route("/approve_users")
 @login_required
 @admin_required
@@ -102,7 +109,7 @@ def approve_users():
     return render_template("approve_users.html", users=pending_users)
 
 
-# ================= APPROVE USER (SECURE POST) =================
+# ================= APPROVE USER =================
 @auth.route("/approve_user/<int:user_id>", methods=["POST"])
 @login_required
 @admin_required
@@ -124,6 +131,8 @@ def approve_user(user_id):
 
     flash(f"{user.username} approved.")
     return redirect(url_for("auth.approve_users"))
+
+
 # ================= CHANGE ROLE =================
 @auth.route("/change_role/<int:user_id>", methods=["POST"])
 @login_required
@@ -137,22 +146,29 @@ def change_role(user_id):
         flash("You cannot change your own role.")
         return redirect(url_for("auth.approve_users"))
 
-    # 🔐 SUPER ADMIN (full access)
+    # 🔐 SUPER ADMIN
     if current_user.role == "Super Admin":
         user.role = new_role
         db.session.commit()
+
+        log = AuditLog(
+            action=f"Changed role to {new_role}",
+            performed_by=current_user.username,
+            target_user=user.username
+        )
+        db.session.add(log)
+        db.session.commit()
+
         flash("Role updated by Super Admin.")
         return redirect(url_for("auth.approve_users"))
 
-    # 🔐 NORMAL ADMIN (restricted)
+    # 🔐 ADMIN
     if current_user.role == "Admin":
 
-        # ❌ Cannot assign Super Admin
         if new_role == "Super Admin":
             flash("Only Super Admin can assign this role.")
             return redirect(url_for("auth.approve_users"))
 
-        # 🔐 Limit Admins to 3
         if new_role == "Admin":
             admin_count = User.query.filter_by(role="Admin", approved=True).count()
 
@@ -162,21 +178,24 @@ def change_role(user_id):
 
         user.role = new_role
         db.session.commit()
-        # After db.session.commit()
 
-      log = AuditLog(
-        action=f"Changed role to {new_role}",
-        performed_by=current_user.username,
-       target_user=user.username
-      )
-   db.session.add(log)
-  db.session.commit()
+        log = AuditLog(
+            action=f"Changed role to {new_role}",
+            performed_by=current_user.username,
+            target_user=user.username
+        )
+        db.session.add(log)
+        db.session.commit()
+
         flash("Role updated successfully.")
         return redirect(url_for("auth.approve_users"))
 
     # ❌ Others blocked
     flash("Access denied.")
     return redirect(url_for("dashboard.show_dashboard"))
+
+
+# ================= VIEW LOGS =================
 @auth.route("/logs")
 @login_required
 @admin_required
