@@ -8,31 +8,27 @@
 <!-- ================= KPI SECTION ================= -->
 <div class="row text-center mb-4">
 
-    <!-- Total States -->
     <div class="col-md-3">
         <div class="card shadow p-4 bg-success text-white">
             <h6>Total States</h6>
-            <h2 id="statesCounter">{{ total_states or 0 }}</h2>
+            <h2 id="statesCounter">{{ total_states | default(0) }}</h2>
         </div>
     </div>
 
-    <!-- Total Production -->
     <div class="col-md-3">
         <div class="card shadow p-4 bg-primary text-white">
             <h6>Total Production</h6>
-            <h2 id="productionCounter">{{ total_production or 0 }}</h2>
+            <h2 id="productionCounter">{{ total_production | default(0) }}</h2>
         </div>
     </div>
 
-    <!-- Growth Percentage -->
     <div class="col-md-3">
         <div class="card shadow p-4 bg-warning text-dark">
             <h6>Growth %</h6>
-            <h2>{{ growth_percent or 0 }}%</h2>
+            <h2>{{ growth_percent | default(0) }}%</h2>
         </div>
     </div>
 
-    <!-- Risk Overview -->
     <div class="col-md-3">
         <div class="card shadow p-4
             {% if risk_overview == 'LOW' %}
@@ -46,7 +42,7 @@
             {% endif %}
         ">
             <h6>Risk Overview</h6>
-            <h2>{{ risk_overview or 'N/A' }}</h2>
+            <h2>{{ risk_overview | default('N/A') }}</h2>
         </div>
     </div>
 
@@ -55,15 +51,13 @@
 
 <!-- ================= ROLE-BASED DISPLAY ================= -->
 
-{% if current_user.role in ["Admin", "Data Analyst"] %}
+{% if current_user.is_authenticated and current_user.role in ["Admin", "Super Admin", "Data Analyst"] %}
 
-    <!-- Production Trend -->
     <div class="card shadow p-4 mb-4">
         <h5 class="text-center">Production Trend</h5>
         <canvas id="trendChart"></canvas>
     </div>
 
-    <!-- Crop Comparison -->
     <div class="card shadow p-4 mb-4">
         <h5 class="text-center">Crop Comparison</h5>
         <canvas id="cropChart"></canvas>
@@ -71,19 +65,11 @@
 
 {% endif %}
 
-{% if current_user.role in ["Admin", "Officer"] %}
-    <!-- Risk Section visible to Admin & Officer -->
-{% endif %}
 
-{% if current_user.role == "Farmer" %}
-    <!-- Farmer sees only summary -->
-{% endif %}
-
-
-<!-- ================= FORECAST SNAPSHOT ================= -->
+<!-- ================= FORECAST ================= -->
 <div class="card shadow p-4 mb-4 bg-info text-white text-center">
     <h5>Next Year Forecast</h5>
-    <h2>{{ forecast_next or 0 }}</h2>
+    <h2>{{ forecast_next | default(0) }}</h2>
 </div>
 
 <hr>
@@ -104,7 +90,7 @@
 </div>
 
 
-<!-- ================= SAFE JSON DATA ================= -->
+<!-- ================= SAFE JSON ================= -->
 <script id="dashboard-data" type="application/json">
 {
     "trend_labels": {{ trend_labels | default([]) | tojson }},
@@ -120,9 +106,9 @@
 
 <script>
 
-// ================= READ SAFE DATA =================
+// ================= SAFE DATA =================
 const dashboardData = JSON.parse(
-    document.getElementById("dashboard-data").textContent
+    document.getElementById("dashboard-data").textContent || "{}"
 );
 
 const trendLabels = dashboardData.trend_labels || [];
@@ -141,8 +127,7 @@ if (trendLabels.length > 0 && document.getElementById('trendChart')) {
                 data: trendValues,
                 borderColor: '#0d6efd',
                 backgroundColor: 'rgba(13,110,253,0.2)',
-                fill: true,
-                tension: 0.3
+                fill: true
             }]
         }
     });
@@ -163,19 +148,19 @@ if (cropLabels.length > 0 && document.getElementById('cropChart')) {
     });
 }
 
-// ================= ANIMATED COUNTERS =================
+// ================= COUNTERS =================
 function animateCounter(id, target) {
     let count = 0;
-    let increment = target / 100;
+    let increment = target / 50;
+
     let interval = setInterval(() => {
         count += increment;
         if (count >= target) {
             count = target;
             clearInterval(interval);
         }
-        if (document.getElementById(id)) {
-            document.getElementById(id).innerText = Math.floor(count);
-        }
+        let el = document.getElementById(id);
+        if (el) el.innerText = Math.floor(count);
     }, 20);
 }
 
@@ -187,9 +172,9 @@ function sendMessage() {
 
     let message = document.getElementById("user-input").value;
 
-    fetch("/chatbot", {
+    fetch("{{ url_for('dashboard.chatbot') }}", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
             message: message,
             mode: document.getElementById("modeSelect").value
