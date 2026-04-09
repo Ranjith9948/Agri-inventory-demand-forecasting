@@ -1,5 +1,5 @@
-from flask import Blueprint, render_template, session, redirect, url_for, request, jsonify, current_app
-from flask_login import login_required
+from flask import Blueprint, render_template, jsonify, request, current_app
+from flask_login import login_required, current_user
 import pandas as pd
 import os
 import numpy as np
@@ -10,17 +10,23 @@ dashboard = Blueprint("dashboard", __name__)
 # ================= LOAD DATA SAFELY =================
 def load_data():
     try:
-        file_path = os.path.join(current_app.root_path, "..", "data", "crop_production.csv")
+        file_path = os.path.join(current_app.root_path, "data", "crop_production.csv")
+        
+        # fallback if not found
+        if not os.path.exists(file_path):
+            file_path = os.path.join(current_app.root_path, "..", "data", "crop_production.csv")
+
         file_path = os.path.abspath(file_path)
         df = pd.read_csv(file_path)
         return df
+
     except Exception as e:
         print("CSV Load Error:", e)
         return pd.DataFrame()
 
 
 # ================= MAIN DASHBOARD =================
-@dashboard.route("/")
+@dashboard.route("/dashboard")   # ✅ FIXED ROUTE
 @login_required
 def show_dashboard():
 
@@ -42,11 +48,11 @@ def show_dashboard():
             forecast_next=0
         )
 
-    # BASIC KPIs
+    # ================= KPIs =================
     total_states = df["State_Name"].nunique()
     total_production = int(df["Production"].sum())
 
-    # TOP STATES
+    # ================= TOP STATES =================
     state_data = (
         df.groupby("State_Name")["Production"]
         .sum()
@@ -54,7 +60,7 @@ def show_dashboard():
         .head(5)
     )
 
-    # TOP CROPS
+    # ================= TOP CROPS =================
     crop_data = (
         df.groupby("Crop")["Production"]
         .sum()
@@ -62,28 +68,23 @@ def show_dashboard():
         .head(5)
     )
 
-    # PRODUCTION TREND
+    # ================= TREND =================
     year_column = "Crop_Year" if "Crop_Year" in df.columns else "Year"
 
-    trend = (
-        df.groupby(year_column)["Production"]
-        .sum()
-        .sort_index()
-    )
+    trend = df.groupby(year_column)["Production"].sum().sort_index()
 
     trend_labels = trend.index.tolist()
     trend_values = trend.values.tolist()
 
-    # GROWTH %
+    # ================= GROWTH =================
     if len(trend_values) >= 2 and trend_values[-2] != 0:
         growth_percent = round(
-            ((trend_values[-1] - trend_values[-2]) / trend_values[-2]) * 100,
-            2
+            ((trend_values[-1] - trend_values[-2]) / trend_values[-2]) * 100, 2
         )
     else:
         growth_percent = 0
 
-    # RISK OVERVIEW
+    # ================= RISK =================
     avg_production = np.mean(trend_values)
 
     if avg_production > 500000:
@@ -93,7 +94,7 @@ def show_dashboard():
     else:
         risk_overview = "HIGH"
 
-    # FORECAST SNAPSHOT
+    # ================= FORECAST =================
     last_value = trend_values[-1] if trend_values else 0
     forecast_next = int(last_value * 1.03)
 
@@ -113,7 +114,7 @@ def show_dashboard():
     )
 
 
-# ================= AGRIBOT =================
+# ================= CHATBOT =================
 @dashboard.route("/chatbot", methods=["POST"])
 @login_required
 def chatbot():
