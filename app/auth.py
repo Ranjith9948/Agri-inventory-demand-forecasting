@@ -27,6 +27,27 @@ def admin_required(f):
     return decorated_function
 
 
+# ================= 🔥 CREATE SUPER ADMIN (TEMP FIX) =================
+@auth.route("/create_admin")
+def create_admin():
+
+    existing = User.query.filter_by(username="superadmin").first()
+
+    if not existing:
+        user = User(
+            username="superadmin",
+            email="admin@gov.in",
+            password=generate_password_hash("admin123"),
+            role="Super Admin",
+            approved=True
+        )
+        db.session.add(user)
+        db.session.commit()
+        return "✅ Super Admin Created"
+
+    return "⚠️ Already exists"
+
+
 # ================= LOGIN =================
 @auth.route("/login", methods=["GET", "POST"])
 def login():
@@ -120,7 +141,6 @@ def approve_user(user_id):
     user.approved = True
     db.session.commit()
 
-    # ✅ LOG ENTRY
     log = AuditLog(
         action="Approved User",
         performed_by=current_user.username,
@@ -141,12 +161,10 @@ def change_role(user_id):
     user = User.query.get_or_404(user_id)
     new_role = request.form.get("role")
 
-    # ❌ Prevent self role change
     if user.id == current_user.id:
         flash("You cannot change your own role.")
         return redirect(url_for("auth.approve_users"))
 
-    # 🔐 SUPER ADMIN
     if current_user.role == "Super Admin":
         user.role = new_role
         db.session.commit()
@@ -162,7 +180,6 @@ def change_role(user_id):
         flash("Role updated by Super Admin.")
         return redirect(url_for("auth.approve_users"))
 
-    # 🔐 ADMIN
     if current_user.role == "Admin":
 
         if new_role == "Super Admin":
@@ -190,7 +207,6 @@ def change_role(user_id):
         flash("Role updated successfully.")
         return redirect(url_for("auth.approve_users"))
 
-    # ❌ Others blocked
     flash("Access denied.")
     return redirect(url_for("dashboard.show_dashboard"))
 
