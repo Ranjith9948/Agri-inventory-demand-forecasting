@@ -1,4 +1,4 @@
-from flask import Flask, session, redirect, request, abort
+from flask import Flask, session, redirect, request, abort, url_for
 from flask_login import LoginManager, current_user
 from flask_bcrypt import Bcrypt
 from functools import wraps
@@ -12,13 +12,13 @@ bcrypt = Bcrypt()
 
 
 # ============================
-# 🔐 ADMIN DECORATOR (GLOBAL)
+# 🔐 ADMIN DECORATOR (FIXED)
 # ============================
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or current_user.role != "Admin":
-            abort(403)  # Forbidden
+        if not current_user.is_authenticated or current_user.role not in ["Admin", "Super Admin"]:
+            abort(403)
         return f(*args, **kwargs)
     return decorated_function
 
@@ -32,7 +32,7 @@ def create_app():
     # ============================
     app.config.update(
         SESSION_COOKIE_HTTPONLY=True,
-        SESSION_COOKIE_SECURE=False,  # 🔴 Change to True in HTTPS (Render)
+        SESSION_COOKIE_SECURE=False,  # change to True in production
         SESSION_COOKIE_SAMESITE='Lax'
     )
 
@@ -46,14 +46,14 @@ def create_app():
     login_manager.login_view = "auth.login"
 
     # ============================
-    # 🔐 UNAUTHORIZED HANDLER
+    # 🔐 UNAUTHORIZED HANDLER (FIXED)
     # ============================
     @login_manager.unauthorized_handler
     def unauthorized_callback():
-        return redirect("/login")
+        return redirect(url_for("auth.login"))
 
     # ============================
-    # 🔐 PREVENT CACHE (STRONG)
+    # 🔐 PREVENT CACHE
     # ============================
     @app.after_request
     def add_header(response):
@@ -63,7 +63,7 @@ def create_app():
         return response
 
     # ============================
-    # 🌐 LANGUAGE ROUTE (SAFE)
+    # 🌐 LANGUAGE ROUTE
     # ============================
     @app.route("/set_language/<lang>")
     def set_language(lang):
@@ -73,7 +73,7 @@ def create_app():
         return redirect(request.referrer or "/")
 
     # ============================
-    # 🌐 TRANSLATOR INJECTION
+    # 🌐 TRANSLATOR
     # ============================
     @app.context_processor
     def inject_translator():
@@ -83,11 +83,11 @@ def create_app():
         return dict(_=_)
 
     # ============================
-    # 🔐 ADMIN PENDING COUNT
+    # 🔥 FIXED: PENDING COUNT (SUPER ADMIN INCLUDED)
     # ============================
     @app.context_processor
     def inject_pending_count():
-        if current_user.is_authenticated and current_user.role == "Admin":
+        if current_user.is_authenticated and current_user.role in ["Admin", "Super Admin"]:
             pending = User.query.filter_by(approved=False).count()
         else:
             pending = 0
